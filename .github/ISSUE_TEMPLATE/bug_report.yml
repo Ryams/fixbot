@@ -1,0 +1,83 @@
+name: Bug report
+description: Report a problem with fixbot
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the sections below so we can reproduce it.
+
+        ⚠️ **Do not paste secrets.** Redact API keys, tokens, and anything sensitive from config, logs, and output. For security **vulnerabilities**, do not file a public issue — follow the private reporting process in `SECURITY.md`.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, including what you expected to happen instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The exact command(s) you ran and what you did.
+      placeholder: |
+        1. Configured fixbot.json with ...
+        2. Ran `fixbot run --dry-run --verbose`
+        3. Saw ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Fixbot version
+      description: "Output of `fixbot --version` (or the commit SHA if running from source)."
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      description: "Output of `python --version`."
+      placeholder: "3.12.x"
+    validations:
+      required: true
+  - type: dropdown
+    id: command
+    attributes:
+      label: How were you running fixbot?
+      options:
+        - "fixbot run (full)"
+        - "fixbot run --dry-run"
+        - "fixbot run --triage-only"
+        - "fixbot init / check-env / config / repo / status"
+        - "Other / not sure"
+    validations:
+      required: true
+  - type: textarea
+    id: providers
+    attributes:
+      label: Provider configuration
+      description: "Which providers are configured. (Just the `*_type` values, not your tokens.)"
+      placeholder: |
+        observability_type: datadog
+        issue_tracker_type: linear
+        code_host_type: github
+        fix_enabled: true
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error output / run log
+      description: "Relevant output (run with `--verbose`), and/or the run log from `fixbot status`. **Redact any secrets.** This will be rendered as code, so no backticks needed."
+      render: shell
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else?
+      description: Environment details (CI vs local, OS, container), or anything else that might help.
+    validations:
+      required: false

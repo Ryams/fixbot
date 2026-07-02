@@ -1,0 +1,83 @@
+{
+  "version": 1,
+
+  "observability_type": "datadog",
+  "code_host_type": "github",
+  "issue_tracker_type": "linear",
+
+  "mcp_servers": {
+    "observability": {
+      "type": "http",
+      "url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
+      "headers": {
+        "DD_API_KEY": "${DD_API_KEY}",
+        "DD_APPLICATION_KEY": "${DD_APP_KEY}"
+      }
+    },
+    "issue_tracker": {
+      "type": "http",
+      "url": "https://mcp.linear.app/mcp",
+      "headers": {
+        "Authorization": "Bearer ${LINEAR_API_KEY}"
+      }
+    },
+    "code_host": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_TOKEN}"
+      }
+    }
+  },
+
+  "repositories": {
+    "my-api": {
+      "code_host_repo": "myorg/my-api"
+    },
+    "my-worker": {
+      "code_host_repo": "myorg/my-worker"
+    }
+  },
+
+  "log_routing": [
+    {"key": "service", "value": "my-api", "repo": "my-api"},
+    {"key": "service", "value": "api-service", "repo": "my-api"},
+    {"key": "service", "value": "worker-service", "repo": "my-worker"}
+  ],
+
+  "worktree_dir": "/home/user/repos/.worktrees",
+
+  "orchestrator": {
+    "model": "claude-sonnet-4-6",
+    "max_turns": 100,
+    "max_budget_usd": 5.00,
+    "effort": "high",
+    "thinking": null,
+    "log_query": "status:(error OR warn) env:production",
+    "log_query_filters": "service:(my-api OR worker-service)",
+    "log_window_hours": 6,
+    "max_code_fixes_per_run": 3,
+    "max_patterns_to_process": 20,
+    "filter_instructions": null
+  },
+
+  "bug_fixer": {
+    "model": "claude-sonnet-4-6",
+    "max_turns": 200,
+    "max_budget_usd": 3.00,
+    "effort": "high",
+    "thinking": null
+  },
+
+  "issue_tracker_settings": {
+    "team": "Engineering",
+    "project": "fixbot",
+    "branch_prefix": "fixbot",
+    "ticket_prefix": "ENG",
+    "error_priority": 2,
+    "warn_priority": 3
+  },
+
+  "read_only_repos": [],
+  "run_log_dir": ".fixbot/logs"
+}

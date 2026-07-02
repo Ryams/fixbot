@@ -1,0 +1,23 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Fixbot runtime
+.fixbot/
+.worktrees/
+fixbot.json
+fixbot.zip
+
+# Environment
+.env
+.env.*
+
+# macOS
+.DS_Store

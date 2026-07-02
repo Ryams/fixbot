@@ -1,0 +1,63 @@
+# Example GitHub Actions workflow that runs fixbot on a schedule.
+# Place this file at .github/workflows/fixbot-scheduled.yml in your repo.
+#
+# This example uses clone-on-demand — repo_path is omitted from fixbot.json
+# so the bug-fixer clones repos automatically. No manual checkout steps needed
+# beyond the fixbot repo itself.
+
+name: Fixbot Scheduled Run
+
+on:
+  schedule:
+    # Run every 6 hours
+    - cron: "0 */6 * * *"
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  fixbot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # The bug-fixer needs to push branches and open PRs. The automatic
+    # GITHUB_TOKEN is read-only by default, so grant write access explicitly.
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install fixbot
+        run: pip install .
+
+      - name: Install Node.js (for MCP servers)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run fixbot
+        run: fixbot run --config fixbot.json --verbose
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_APP_KEY: ${{ secrets.DD_APP_KEY }}
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          # The automatic GITHUB_TOKEN is scoped to THIS repo only. For
+          # clone-on-demand and PRs against your other (or private) service
+          # repos, replace it with a PAT or GitHub App token that has access
+          # to those repos, e.g. ${{ secrets.FIXBOT_GITHUB_TOKEN }}.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload run log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixbot-run-log
+          path: .fixbot/logs/
+          retention-days: 30
