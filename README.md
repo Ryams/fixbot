@@ -62,6 +62,19 @@ fixbot init
 
 This creates `fixbot.json`, prompting interactively for your observability platform, mode (fix or triage-only), code host, repositories, issue tracker, and other settings.
 
+To generate the config without prompts (for scripts or agents), pass `--non-interactive`/`-y` and supply values via flags; anything omitted falls back to defaults:
+
+```bash
+fixbot init -y \
+  --observability-type datadog \
+  --issue-tracker-type linear \
+  --repo myorg/api --repo myorg/worker \
+  --branch-prefix fixbot \
+  --set team=Engineering --set ticket_prefix=ENG
+```
+
+Use `--triage-only` with `--service NAME` for triage mode, and `--set KEY=VALUE` (repeatable) for any `issue_tracker_settings` field. In non-interactive mode an existing `fixbot.json` is overwritten (with a notice). Run `fixbot init --help` for the full list.
+
 ### 2. Set environment variables
 
 Set `ANTHROPIC_API_KEY` plus the keys for your chosen providers. Example for the defaults (Datadog + Linear + GitHub):
@@ -101,6 +114,7 @@ fixbot run --verbose
 | `fixbot --version` | Show the fixbot version |
 | `fixbot --help` | Show available commands and options |
 | `fixbot init` | Interactive config setup |
+| `fixbot init -y` | Non-interactive config setup from flags/defaults |
 | `fixbot run` | Run the bug fix pipeline |
 | `fixbot run --dry-run` | Preview what would happen without making changes |
 | `fixbot run --triage-only` | File tickets from log patterns without spawning a bug-fixer or opening PRs |

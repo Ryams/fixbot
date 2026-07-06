@@ -3,6 +3,169 @@ import json
 from click.testing import CliRunner
 
 from fixbot.cli import _repo_name_from_code_host, cli
+from fixbot.config import load_config
+
+
+class TestInitNonInteractive:
+    def _load(self, tmp_path):
+        return json.loads((tmp_path / "fixbot.json").read_text())
+
+    def test_fix_mode_basic(self, tmp_path):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "init",
+                "-y",
+                "--dir",
+                str(tmp_path),
+                "--observability-type",
+                "datadog",
+                "--issue-tracker-type",
+                "linear",
+                "--repo",
+                "myorg/api",
+                "--repo",
+                "myorg/worker",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        cfg = self._load(tmp_path)
+        assert cfg["fix_enabled"] is True
+        assert cfg["code_host_type"] == "github"
+        assert cfg["observability_type"] == "datadog"
+        assert cfg["repositories"] == {
+            "api": {"code_host_repo": "myorg/api"},
+            "worker": {"code_host_repo": "myorg/worker"},
+        }
+        # Must be a valid config that load_config accepts.
+        loaded = load_config(tmp_path / "fixbot.json", resolve_env=False)
+        assert loaded.issue_tracker_type == "linear"
+
+    def test_repo_name_dedup(self, tmp_path):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            ["init", "-y", "--dir", str(tmp_path), "--repo", "myorg/api", "--repo", "other/api"],
+        )
+        assert result.exit_code == 0, result.output
+        repos = self._load(tmp_path)["repositories"]
+        assert repos == {
+            "api": {"code_host_repo": "myorg/api"},
+            "api-2": {"code_host_repo": "other/api"},
+        }
+
+    def test_set_coercion_and_branch_prefix(self, tmp_path):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "init",
+                "-y",
+                "--dir",
+                str(tmp_path),
+                "--repo",
+                "myorg/api",
+                "--branch-prefix",
+                "hotfix",
+                "--set",
+                "team=Payments",
+                "--set",
+                "error_priority=1",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        its = self._load(tmp_path)["issue_tracker_settings"]
+        assert its["team"] == "Payments"
+        assert its["error_priority"] == 1  # coerced to int
+        assert its["branch_prefix"] == "hotfix"
+
+    def test_triage_mode_with_services(self, tmp_path):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "init",
+                "-y",
+                "--dir",
+                str(tmp_path),
+                "--triage-only",
+                "--issue-tracker-type",
+                "github",
+                "--service",
+                "api",
+                "--service",
+                "worker",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        cfg = self._load(tmp_path)
+        assert cfg["fix_enabled"] is False
+        assert cfg["repositories"] == {"api": {}, "worker": {}}
+
+    def test_unknown_tracker_type_errors(self, tmp_path):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli, ["init", "-y", "--dir", str(tmp_path), "--issue-tracker-type", "bogus"]
+        )
+        assert result.exit_code == 2
+        assert "Unknown issue tracker type 'bogus'" in result.output
+        assert not (tmp_path / "fixbot.json").exists()
+
+    def test_config_flags_require_non_interactive(self, tmp_path):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["init", "--dir", str(tmp_path), "--repo", "myorg/api"])
+        assert result.exit_code == 2
+        assert "require --non-interactive" in result.output
+
+    def test_service_rejected_in_fix_mode(self, tmp_path):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["init", "-y", "--dir", str(tmp_path), "--service", "api"])
+        assert result.exit_code == 2
+        assert "--service is only valid with --triage-only" in result.output
+
+    def test_repo_allowed_in_triage_mode(self, tmp_path):
+        # In triage-only, --repo is recorded (unused) alongside --service scopes.
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "init",
+                "-y",
+                "--dir",
+                str(tmp_path),
+                "--triage-only",
+                "--repo",
+                "myorg/api",
+                "--service",
+                "worker",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        cfg = self._load(tmp_path)
+        assert cfg["fix_enabled"] is False
+        assert cfg["repositories"] == {
+            "api": {"code_host_repo": "myorg/api"},
+            "worker": {},
+        }
+        # Triage config with a code_host_repo entry must still load fine.
+        loaded = load_config(tmp_path / "fixbot.json", resolve_env=False)
+        assert set(loaded.repositories) == {"api", "worker"}
+
+    def test_bad_set_syntax_errors(self, tmp_path):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["init", "-y", "--dir", str(tmp_path), "--set", "teamPayments"])
+        assert result.exit_code == 2
+        assert "--set expects KEY=VALUE" in result.output
+
+    def test_non_interactive_overwrites_existing(self, tmp_path):
+        (tmp_path / "fixbot.json").write_text('{"version": 1}\n')
+        runner = CliRunner()
+        result = runner.invoke(cli, ["init", "-y", "--dir", str(tmp_path), "--repo", "myorg/api"])
+        assert result.exit_code == 0, result.output
+        assert self._load(tmp_path)["repositories"] == {"api": {"code_host_repo": "myorg/api"}}
+        # An overwrite notice is surfaced on stderr.
+        assert "Overwriting existing" in result.output
 
 
 class TestCLI:

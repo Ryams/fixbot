@@ -76,6 +76,172 @@ def _collect_env_vars(obj: object) -> set[str]:
     return set()
 
 
+def _check_required_tools() -> None:
+    """Warn if runtime-required external tools are missing from PATH."""
+    missing_tools = [tool for tool in ("git", "npx") if not shutil.which(tool)]
+    if missing_tools:
+        click.echo(
+            f"Warning: required tools not found in PATH: {', '.join(missing_tools)}\n"
+            "These are needed at runtime for fixbot to function.",
+            err=True,
+        )
+
+
+def _add_repo(repos: dict, code_host_repo: str) -> str:
+    """Add a repo under an auto-derived, de-duplicated name. Returns the name."""
+    name = _repo_name_from_code_host(code_host_repo)
+    if name in repos:
+        suffix = 2
+        while f"{name}-{suffix}" in repos:
+            suffix += 1
+        name = f"{name}-{suffix}"
+    repos[name] = {"code_host_repo": code_host_repo}
+    return name
+
+
+def _coerce_setting(value: str) -> object:
+    """Coerce a --set string value to int/bool/None when it clearly is one."""
+    stripped = value.strip()
+    if stripped.lstrip("-").isdigit():
+        return int(stripped)
+    if stripped.lower() in ("true", "false"):
+        return stripped.lower() == "true"
+    if stripped.lower() == "null":
+        return None
+    return value
+
+
+def _finalize_init(
+    config: dict,
+    config_path: Path,
+    observability_type: str,
+    issue_tracker_type: str,
+    code_host_type: str,
+    fix_enabled: bool,
+) -> None:
+    """Merge with defaults, write fixbot.json, and print the env-var checklist.
+
+    Shared by the interactive and non-interactive init paths."""
+    from fixbot.defaults import (
+        CODE_HOST_PROVIDERS,
+        ISSUE_TRACKER_PROVIDERS,
+        OBSERVABILITY_PROVIDERS,
+    )
+
+    final = deep_merge(DEFAULT_CONFIG, config)
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(json.dumps(final, indent=2) + "\n")
+    click.echo(f"\nConfig written to {config_path}")
+    click.echo("Set required environment variables before running:")
+    click.echo("  ANTHROPIC_API_KEY         (Anthropic)")
+
+    obs_provider = OBSERVABILITY_PROVIDERS[observability_type]
+    obs_env_vars = _collect_env_vars(obs_provider.get_default())
+    if obs_env_vars:
+        click.echo(f"  {', '.join(sorted(obs_env_vars))}    ({obs_provider.NAME})")
+
+    it_provider = ISSUE_TRACKER_PROVIDERS[issue_tracker_type]
+    it_env_vars = _collect_env_vars(it_provider.get_default())
+    if it_env_vars:
+        click.echo(f"  {', '.join(sorted(it_env_vars))}    ({it_provider.NAME})")
+
+    if fix_enabled:
+        provider = CODE_HOST_PROVIDERS[code_host_type]
+        code_host_env_vars = _collect_env_vars(provider.get_default())
+        code_host_env_vars -= it_env_vars - obs_env_vars
+        if code_host_env_vars:
+            click.echo(f"  {', '.join(sorted(code_host_env_vars))}    ({provider.NAME})")
+
+
+def _init_non_interactive(
+    config_path: Path,
+    target: Path,
+    observability_type: str | None,
+    issue_tracker_type: str | None,
+    code_host_type: str | None,
+    fix_enabled: bool | None,
+    repos: tuple[str, ...],
+    services: tuple[str, ...],
+    worktree_dir: str | None,
+    branch_prefix: str | None,
+    settings: tuple[str, ...],
+) -> None:
+    """Build fixbot.json from flags/defaults with no prompts."""
+    from fixbot.defaults import (
+        CODE_HOST_PROVIDERS,
+        ISSUE_TRACKER_PROVIDERS,
+        OBSERVABILITY_PROVIDERS,
+    )
+
+    obs = observability_type or DEFAULT_CONFIG["observability_type"]
+    if obs not in OBSERVABILITY_PROVIDERS:
+        raise click.UsageError(
+            f"Unknown observability type '{obs}'. "
+            f"Available: {', '.join(sorted(OBSERVABILITY_PROVIDERS))}"
+        )
+
+    tracker = issue_tracker_type or DEFAULT_CONFIG["issue_tracker_type"]
+    if tracker not in ISSUE_TRACKER_PROVIDERS:
+        raise click.UsageError(
+            f"Unknown issue tracker type '{tracker}'. "
+            f"Available: {', '.join(sorted(ISSUE_TRACKER_PROVIDERS))}"
+        )
+
+    fix = DEFAULT_CONFIG["fix_enabled"] if fix_enabled is None else fix_enabled
+    code_host = code_host_type or DEFAULT_CONFIG["code_host_type"]
+    if fix and code_host not in CODE_HOST_PROVIDERS:
+        raise click.UsageError(
+            f"Unknown code host type '{code_host}'. "
+            f"Available: {', '.join(sorted(CODE_HOST_PROVIDERS))}"
+        )
+
+    if fix and services:
+        raise click.UsageError("--service is only valid with --triage-only.")
+
+    config: dict = {
+        "version": 1,
+        "observability_type": obs,
+        "fix_enabled": fix,
+        "issue_tracker_type": tracker,
+        "repositories": {},
+    }
+    tracker_settings: dict = {}
+
+    if fix:
+        config["code_host_type"] = code_host
+        for code_host_repo in repos:
+            _add_repo(config["repositories"], code_host_repo)
+        if not config["repositories"]:
+            click.echo(
+                "No repositories specified (--repo). Add them later in fixbot.json.", err=True
+            )
+        config["worktree_dir"] = worktree_dir or str(target / ".worktrees")
+        tracker_settings["branch_prefix"] = (
+            branch_prefix or DEFAULT_CONFIG["issue_tracker_settings"]["branch_prefix"]
+        )
+    else:
+        # Triage never launches the code host, so --repo entries are recorded
+        # but unused; --service entries are bare name-scopes.
+        for code_host_repo in repos:
+            _add_repo(config["repositories"], code_host_repo)
+        for service_name in services:
+            config["repositories"][service_name] = {}
+        if branch_prefix is not None:
+            tracker_settings["branch_prefix"] = branch_prefix
+
+    for item in settings:
+        key, sep, raw_val = item.partition("=")
+        key = key.strip()
+        if not sep or not key:
+            raise click.UsageError(f"--set expects KEY=VALUE, got {item!r}.")
+        tracker_settings[key] = _coerce_setting(raw_val)
+
+    if tracker_settings:
+        config["issue_tracker_settings"] = tracker_settings
+
+    _finalize_init(config, config_path, obs, tracker, code_host, fix)
+
+
 class FixbotGroup(click.Group):
     def resolve_command(self, ctx, args):
         try:
@@ -94,25 +260,108 @@ def cli():
 
 @cli.command()
 @click.option("--dir", "target_dir", default=".", help="Directory to create fixbot.json in")
-def init(target_dir: str):
-    """Initialize a new fixbot configuration."""
+@click.option(
+    "-y",
+    "--non-interactive",
+    is_flag=True,
+    help="Skip all prompts; build the config from flags and defaults.",
+)
+@click.option("--observability-type", default=None, help="Observability platform (with -y).")
+@click.option("--issue-tracker-type", default=None, help="Issue tracker (with -y).")
+@click.option("--code-host-type", default=None, help="Code host, fix mode (with -y).")
+@click.option(
+    "--fix/--triage-only",
+    "fix_enabled",
+    default=None,
+    help="Open PRs (fix) or only file tickets (triage-only). With -y; default fix.",
+)
+@click.option(
+    "--repo",
+    "repos",
+    multiple=True,
+    metavar="ORG/REPO",
+    help="Repository to fix (org/repo); repeatable (with -y). Recorded but unused in --triage-only.",
+)
+@click.option(
+    "--service",
+    "services",
+    multiple=True,
+    metavar="NAME",
+    help="Service name to scope triage to; repeatable (with -y, --triage-only).",
+)
+@click.option("--worktree-dir", default=None, help="Worktree directory (with -y, fix mode).")
+@click.option("--branch-prefix", default=None, help="Branch prefix for PRs (with -y, fix mode).")
+@click.option(
+    "--set",
+    "settings",
+    multiple=True,
+    metavar="KEY=VALUE",
+    help="Set an issue_tracker_settings value; repeatable (with -y).",
+)
+def init(
+    target_dir: str,
+    non_interactive: bool,
+    observability_type: str | None,
+    issue_tracker_type: str | None,
+    code_host_type: str | None,
+    fix_enabled: bool | None,
+    repos: tuple[str, ...],
+    services: tuple[str, ...],
+    worktree_dir: str | None,
+    branch_prefix: str | None,
+    settings: tuple[str, ...],
+):
+    """Initialize a new fixbot configuration.
+
+    Runs an interactive wizard by default. Pass --non-interactive/-y to build
+    the config from flags and defaults instead (useful for scripts and agents):
+
+        fixbot init -y --repo myorg/api --set team=Engineering
+    """
     target = Path(target_dir).resolve()
     config_path = target / "fixbot.json"
 
+    value_flags_used = any(
+        [
+            observability_type is not None,
+            issue_tracker_type is not None,
+            code_host_type is not None,
+            fix_enabled is not None,
+            bool(repos),
+            bool(services),
+            bool(settings),
+            worktree_dir is not None,
+            branch_prefix is not None,
+        ]
+    )
+    if value_flags_used and not non_interactive:
+        raise click.UsageError("Configuration flags require --non-interactive/-y.")
+
     if config_path.exists():
-        if not click.confirm(f"{config_path} already exists. Overwrite?", default=False):
+        # -y means "assume yes", so it overwrites — but leave an audit trail on
+        # stderr in case an existing hand-tuned config is being replaced.
+        if non_interactive:
+            click.echo(f"Overwriting existing {config_path}", err=True)
+        elif not click.confirm(f"{config_path} already exists. Overwrite?", default=False):
             raise SystemExit(0)
 
-    missing_tools = []
-    for tool in ("git", "npx"):
-        if not shutil.which(tool):
-            missing_tools.append(tool)
-    if missing_tools:
-        click.echo(
-            f"Warning: required tools not found in PATH: {', '.join(missing_tools)}\n"
-            "These are needed at runtime for fixbot to function.",
-            err=True,
+    _check_required_tools()
+
+    if non_interactive:
+        _init_non_interactive(
+            config_path,
+            target,
+            observability_type,
+            issue_tracker_type,
+            code_host_type,
+            fix_enabled,
+            repos,
+            services,
+            worktree_dir,
+            branch_prefix,
+            settings,
         )
+        return
 
     config: dict = {
         "version": 1,
@@ -258,29 +507,14 @@ def init(target_dir: str):
             "Priority for warnings", default="Medium"
         )
 
-    final = deep_merge(DEFAULT_CONFIG, config)
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    config_path.write_text(json.dumps(final, indent=2) + "\n")
-    click.echo(f"\nConfig written to {config_path}")
-    click.echo("Set required environment variables before running:")
-    click.echo("  ANTHROPIC_API_KEY         (Anthropic)")
-
-    obs_provider = OBSERVABILITY_PROVIDERS[observability_type]
-    obs_env_vars = _collect_env_vars(obs_provider.get_default())
-    if obs_env_vars:
-        click.echo(f"  {', '.join(sorted(obs_env_vars))}    ({obs_provider.NAME})")
-
-    it_provider = ISSUE_TRACKER_PROVIDERS[issue_tracker_type]
-    it_env_vars = _collect_env_vars(it_provider.get_default())
-    if it_env_vars:
-        click.echo(f"  {', '.join(sorted(it_env_vars))}    ({it_provider.NAME})")
-
-    if fix_enabled:
-        provider = CODE_HOST_PROVIDERS[code_host_type]
-        code_host_env_vars = _collect_env_vars(provider.get_default())
-        code_host_env_vars -= it_env_vars - obs_env_vars
-        if code_host_env_vars:
-            click.echo(f"  {', '.join(sorted(code_host_env_vars))}    ({provider.NAME})")
+    _finalize_init(
+        config,
+        config_path,
+        observability_type,
+        issue_tracker_type,
+        code_host_type,
+        fix_enabled,
+    )
 
 
 @cli.command()
