@@ -38,7 +38,6 @@ Fixbot is a CLI tool for automatically detecting and fixing production errors fr
   Run `fixbot check-env` to see which variables your configuration needs.
 
   `ANTHROPIC_API_KEY` takes priority when set (use it for a dedicated service account); if it is unset, fixbot falls back to an authenticated Claude Code session. See [Anthropic authentication](docs/CONFIGURATION.md#anthropic-authentication).
-- **Grafana/Loki only:** run Loki with the **pattern ingester enabled** (`pattern_ingester.enabled: true`) so `query_loki_patterns` works. Without it fixbot falls back to raw-log fetching, which costs far more tokens. Enabled by default on Grafana Cloud; self-hosted Loki must opt in. See [`observability_type`](docs/CONFIGURATION.md#observability_type).
 
 ## Installation
 
@@ -137,6 +136,8 @@ Fixbot supports several popular providers:
 | Code host | `code_host_type` | `github`, `gitlab`, `bitbucket` | `github` |
 
 See **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)** and the annotated [`fixbot.example.json`](fixbot.example.json) for a complete description of the configuration file.
+
+> **Note (Grafana/Loki only):** run Loki with the **pattern ingester enabled** (`pattern_ingester.enabled: true`) so `query_loki_patterns` works. Without it fixbot falls back to raw-log fetching, which costs far more tokens. Enabled by default on Grafana Cloud; self-hosted Loki must opt in. See [`observability_type`](docs/CONFIGURATION.md#observability_type).
 
 ## Scheduling
 
