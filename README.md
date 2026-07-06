@@ -130,6 +130,8 @@ Fixbot does not include a built-in scheduler. Run it locally, with any scheduler
 
 See [`examples/github-actions-scheduled.yml`](examples/github-actions-scheduled.yml) for a GitHub Actions example.
 
+In CI/CD, skip `fixbot init` (it is interactive) — provide a `fixbot.json` and supply secrets separately via environment variables.
+
 ## Run logs
 
 Each run writes a JSON log to the configured `run_log_dir` (default: `.fixbot/logs/`). View the latest with:

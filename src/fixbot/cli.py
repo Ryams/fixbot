@@ -360,7 +360,10 @@ def run(
 
     result = asyncio.run(run_orchestrator(config, dry_run=dry_run, verbose=verbose))
 
-    click.echo(result.summary_text)
+    # In verbose mode the final message already streamed to stderr, so skip
+    # re-echoing it here to avoid printing the orchestrator's output twice.
+    if not verbose:
+        click.echo(result.summary_text)
     if result.usage:
         input_t = (
             result.usage.get("input_tokens", 0)
