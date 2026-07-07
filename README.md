@@ -42,15 +42,25 @@ Fixbot is a CLI tool for automatically detecting and fixing production errors fr
 
 ## Installation
 
-```bash
-pip install .
-```
-
-Or with [uv](https://docs.astral.sh/uv/):
+Fixbot is a command-line tool, so the cleanest install is into an isolated environment with [uv](https://docs.astral.sh/uv/):
 
 ```bash
-uv pip install .
+uv tool install fixbot
 ```
+
+Or with [pipx](https://pipx.pypa.io/):
+
+```bash
+pipx install fixbot
+```
+
+You can also install it into the current environment with pip:
+
+```bash
+pip install fixbot
+```
+
+To install from source (e.g. for development), see [CONTRIBUTING.md](https://github.com/Ryams/fixbot/blob/main/CONTRIBUTING.md).
 
 ## Quick start
 
