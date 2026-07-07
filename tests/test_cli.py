@@ -2,6 +2,7 @@ import json
 
 from click.testing import CliRunner
 
+from fixbot import __version__
 from fixbot.cli import _repo_name_from_code_host, cli
 from fixbot.config import load_config
 
@@ -173,7 +174,7 @@ class TestCLI:
         runner = CliRunner()
         result = runner.invoke(cli, ["--version"])
         assert result.exit_code == 0
-        assert "0.1.0" in result.output
+        assert __version__ in result.output
 
     def test_help_flag(self):
         runner = CliRunner()

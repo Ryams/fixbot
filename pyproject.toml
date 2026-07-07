@@ -1,6 +1,6 @@
 [project]
 name = "fixbot"
-version = "0.1.0"
+version = "1.0.0"
 description = "Automated production bug detection and fixing using Claude Agent SDK"
 readme = "README.md"
 license = "MIT"
