@@ -8,10 +8,44 @@ authors = [
     { name = "Ryan Staab", email = "5721127+ryams@users.noreply.github.com" }
 ]
 requires-python = ">=3.11"
+keywords = [
+    "claude",
+    "anthropic",
+    "ai-agent",
+    "bug-fixing",
+    "observability",
+    "datadog",
+    "grafana",
+    "linear",
+    "automation",
+    "devops",
+    "sre",
+    "cli",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Bug Tracking",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: System :: Monitoring",
+]
 dependencies = [
     "claude-agent-sdk>=0.1.0",
     "click>=8.1.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/Ryams/fixbot"
+Repository = "https://github.com/Ryams/fixbot"
+Issues = "https://github.com/Ryams/fixbot/issues"
+Documentation = "https://github.com/Ryams/fixbot/blob/main/docs/CONFIGURATION.md"
 
 [project.scripts]
 fixbot = "fixbot.cli:cli"

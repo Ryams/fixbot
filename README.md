@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="img/fixbot_logo.png" alt="Fixbot" width="245">
+  <img src="https://raw.githubusercontent.com/Ryams/fixbot/main/img/fixbot_logo.png" alt="Fixbot" width="245">
 </p>
 
 <p align="center">
@@ -7,8 +7,9 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
-  <a href="pyproject.toml"><img src="https://img.shields.io/badge/python-3.11%2B-blue.svg" alt="Python 3.11+"></a>
+  <a href="https://github.com/Ryams/fixbot/actions/workflows/ci.yml"><img src="https://github.com/Ryams/fixbot/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/Ryams/fixbot/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="https://github.com/Ryams/fixbot/blob/main/pyproject.toml"><img src="https://img.shields.io/badge/python-3.11%2B-blue.svg" alt="Python 3.11+"></a>
 </p>
 
 ## What fixbot is
@@ -22,9 +23,9 @@ Fixbot is a CLI tool for automatically detecting and fixing production errors fr
 3. New patterns get a new ticket and are addressed by a **bug-fixer** subagent
 4. The bug-fixer updates tickets with findings and submits PRs
 
-![fixbot architecture: the orchestrator fetches log patterns from observability and searches/creates tickets in the issue tracker; the bug-fixer it spawns clones the repo from the code host, researches and updates the ticket, and submits a PR](img/fixbot_diagram.png)
+![fixbot architecture: the orchestrator fetches log patterns from observability and searches/creates tickets in the issue tracker; the bug-fixer it spawns clones the repo from the code host, researches and updates the ticket, and submits a PR](https://raw.githubusercontent.com/Ryams/fixbot/main/img/fixbot_diagram.png)
 
-**Triage-only mode:** set `"fix_enabled": false` (or run `fixbot run --triage-only`) to stop after step 2 — fixbot fetches patterns and files tickets, but never spawns a bug-fixer or opens a PR. Useful when a separate workflow acts on the tickets. In this mode the code host is optional and `repositories` aren't required. See [docs/CONFIGURATION.md](docs/CONFIGURATION.md#fix_enabled-mode).
+**Triage-only mode:** set `"fix_enabled": false` (or run `fixbot run --triage-only`) to stop after step 2 — fixbot fetches patterns and files tickets, but never spawns a bug-fixer or opens a PR. Useful when a separate workflow acts on the tickets. In this mode the code host is optional and `repositories` aren't required. See [docs/CONFIGURATION.md](https://github.com/Ryams/fixbot/blob/main/docs/CONFIGURATION.md#fix_enabled-mode).
 
 ## Prerequisites
 
@@ -33,11 +34,11 @@ Fixbot is a CLI tool for automatically detecting and fixing production errors fr
 - API keys: `ANTHROPIC_API_KEY`, plus keys for your configured providers:
   - **Observability** — `DD_API_KEY`/`DD_APP_KEY` (Datadog) or `GRAFANA_URL`/`GRAFANA_API_KEY` (Grafana)
   - **Issue tracker** — `LINEAR_API_KEY` (Linear), `GITHUB_TOKEN` (GitHub Issues), or `JIRA_MCP_URL`/`JIRA_API_TOKEN` (Jira)
-  - **Code host** — `GITHUB_TOKEN`, `GITLAB_TOKEN`, or `BITBUCKET_TOKEN` (not needed in [triage-only mode](docs/CONFIGURATION.md#fix_enabled-mode))
+  - **Code host** — `GITHUB_TOKEN`, `GITLAB_TOKEN`, or `BITBUCKET_TOKEN` (not needed in [triage-only mode](https://github.com/Ryams/fixbot/blob/main/docs/CONFIGURATION.md#fix_enabled-mode))
 
   Run `fixbot check-env` to see which variables your configuration needs.
 
-  `ANTHROPIC_API_KEY` takes priority when set (use it for a dedicated service account); if it is unset, fixbot falls back to an authenticated Claude Code session. See [Anthropic authentication](docs/CONFIGURATION.md#anthropic-authentication).
+  `ANTHROPIC_API_KEY` takes priority when set (use it for a dedicated service account); if it is unset, fixbot falls back to an authenticated Claude Code session. See [Anthropic authentication](https://github.com/Ryams/fixbot/blob/main/docs/CONFIGURATION.md#anthropic-authentication).
 
 ## Installation
 
@@ -135,15 +136,15 @@ Fixbot supports several popular providers:
 | Issue tracker | `issue_tracker_type` | `linear`, `github`, `jira` | `linear` |
 | Code host | `code_host_type` | `github`, `gitlab`, `bitbucket` | `github` |
 
-See **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)** and the annotated [`fixbot.example.json`](fixbot.example.json) for a complete description of the configuration file.
+See **[docs/CONFIGURATION.md](https://github.com/Ryams/fixbot/blob/main/docs/CONFIGURATION.md)** and the annotated [`fixbot.example.json`](https://github.com/Ryams/fixbot/blob/main/fixbot.example.json) for a complete description of the configuration file.
 
-> **Note (Grafana/Loki only):** run Loki with the **pattern ingester enabled** (`pattern_ingester.enabled: true`) so `query_loki_patterns` works. Without it fixbot falls back to raw-log fetching, which costs far more tokens. Enabled by default on Grafana Cloud; self-hosted Loki must opt in. See [`observability_type`](docs/CONFIGURATION.md#observability_type).
+> **Note (Grafana/Loki only):** run Loki with the **pattern ingester enabled** (`pattern_ingester.enabled: true`) so `query_loki_patterns` works. Without it fixbot falls back to raw-log fetching, which costs far more tokens. Enabled by default on Grafana Cloud; self-hosted Loki must opt in. See [`observability_type`](https://github.com/Ryams/fixbot/blob/main/docs/CONFIGURATION.md#observability_type).
 
 ## Scheduling
 
 Fixbot does not include a built-in scheduler. Run it locally, with any scheduler, or through CI.
 
-See [`examples/github-actions-scheduled.yml`](examples/github-actions-scheduled.yml) for a GitHub Actions example.
+See [`examples/github-actions-scheduled.yml`](https://github.com/Ryams/fixbot/blob/main/examples/github-actions-scheduled.yml) for a GitHub Actions example.
 
 In CI/CD, skip `fixbot init` (it is interactive) — provide a `fixbot.json` and supply secrets separately via environment variables.
 
@@ -166,7 +167,7 @@ Fixbot handles multiple API tokens and acts autonomously on production log conte
 - **Scope tokens to least privilege.** Grant each provider token only the access it needs — repo-scoped code-host tokens, read-only observability keys, a dedicated Anthropic key. In triage-only mode no code-host token is needed at all.
 - **Keep a human in the loop.** Fixbot opens PRs but never merges them; review before merging and don't auto-merge.
 
-For further security guidelines, see **[SECURITY.md](SECURITY.md)**.
+For further security guidelines, see **[SECURITY.md](https://github.com/Ryams/fixbot/blob/main/SECURITY.md)**.
 
 ## License
 
