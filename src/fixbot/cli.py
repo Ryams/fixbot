@@ -129,6 +129,18 @@ def _finalize_init(
     )
 
     final = deep_merge(DEFAULT_CONFIG, config)
+
+    # DEFAULT_CONFIG carries the Datadog-syntax log_query, so a bare merge would
+    # bake it into every generated config regardless of provider — and because
+    # the key is then present, the loader's provider-default fallback never
+    # fires (see load_config). Rewrite it to the chosen provider's default so a
+    # non-Datadog config is valid out of the box. An explicit log_query in the
+    # init-built config (should one ever be added) is preserved.
+    if "log_query" not in config.get("orchestrator", {}):
+        final["orchestrator"]["log_query"] = OBSERVABILITY_PROVIDERS[
+            observability_type
+        ].DEFAULT_LOG_QUERY
+
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(json.dumps(final, indent=2) + "\n")
     click.echo(f"\nConfig written to {config_path}")

@@ -43,6 +43,24 @@ class TestInitNonInteractive:
         loaded = load_config(tmp_path / "fixbot.json", resolve_env=False)
         assert loaded.issue_tracker_type == "linear"
 
+    def test_log_query_matches_observability_provider(self, tmp_path):
+        # Regression: init must write the chosen provider's log_query, not the
+        # Datadog-syntax default that deep_merge(DEFAULT_CONFIG, ...) carries.
+        # Grafana/Loki uses a completely different query syntax, so a leaked
+        # Datadog query is invalid against Loki out of the box.
+        from fixbot.defaults import datadog, grafana
+
+        runner = CliRunner()
+        for obs_type, provider in (("datadog", datadog), ("grafana", grafana)):
+            dest = tmp_path / obs_type
+            result = runner.invoke(
+                cli,
+                ["init", "-y", "--dir", str(dest), "--observability-type", obs_type],
+            )
+            assert result.exit_code == 0, result.output
+            cfg = json.loads((dest / "fixbot.json").read_text())
+            assert cfg["orchestrator"]["log_query"] == provider.DEFAULT_LOG_QUERY
+
     def test_repo_name_dedup(self, tmp_path):
         runner = CliRunner()
         result = runner.invoke(
